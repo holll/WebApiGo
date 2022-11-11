@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"io"
 	"os"
 )
@@ -32,4 +34,10 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err //如果有错误了，但是不是不存在的错误，所以把这个错误原封不动的返回
+}
+
+func MD5(data []byte) string {
+	_md5 := md5.New()
+	_md5.Write(data)
+	return hex.EncodeToString(_md5.Sum([]byte("")))
 }

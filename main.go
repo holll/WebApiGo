@@ -4,7 +4,16 @@ import (
 	"WebApiGo/tools"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"math"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	// TokenSalt 可自定义盐值
+	TokenSalt = "default_salt"
 )
 
 func main() {
@@ -15,9 +24,8 @@ func main() {
 		fmt.Println("当前为测试环境")
 	} else {
 		gin.SetMode(gin.ReleaseMode)
+		router.Use(Authorize)
 		fmt.Println("当前为线上环境")
-		//添加中间件
-		router.Use(Middleware)
 	}
 
 	//注册接口
@@ -34,6 +42,18 @@ func main() {
 	}
 }
 
-func Middleware(c *gin.Context) {
-	fmt.Println("this is a middleware!")
+func Authorize(c *gin.Context) {
+	t := c.Query("t")         // 时间戳
+	token := c.Query("token") // 访问令牌
+	timeStamp, _ := strconv.ParseInt(t, 10, 64)
+	nowTimeStamp := time.Now().Unix()
+
+	if strings.ToLower(tools.MD5([]byte(t+TokenSalt))) == strings.ToLower(token) && math.Abs(float64(nowTimeStamp-timeStamp)) < 30 {
+		// 验证通过，会继续访问下一个中间件
+		c.Next()
+	} else {
+		// 验证不通过，不再调用后续的函数处理
+		c.Abort()
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "访问未授权"})
+	}
 }

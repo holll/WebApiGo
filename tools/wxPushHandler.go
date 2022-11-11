@@ -69,20 +69,20 @@ func NewWxSendJson(uid, content, agentId, rawUrl string, check uint8) *WxSend {
 
 func WxPushSendHandler(c *gin.Context) {
 	// 以下为必须参数
-	uid, _ := c.GetQuery("uid")
-	content, _ := c.GetQuery("content")
-	agentId, _ := c.GetQuery("agentid")
+	uid := c.Query("uid")
+	content := c.Query("content")
+	agentId := c.Query("agentid")
 	if len(uid) == 0 || len(content) == 0 || len(agentId) == 0 {
 		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "缺少必须参数"})
 		return
 	}
 	// 以下为可选参数
-	tmpCache, _ := c.GetQuery("cache")
+	tmpCache := c.Query("cache")
 	check := uint8(1)
 	if len(tmpCache) != 0 && tmpCache == "0" {
 		check = 0
 	}
-	rawUrl, _ := c.GetQuery("url")
+	rawUrl := c.Query("url")
 	tmpAccessToken, err := os.ReadFile("a.txt")
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "读取AccessToken失败"})
