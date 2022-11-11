@@ -68,6 +68,9 @@ func NewWxSendJson(uid, content, agentId, rawUrl string, check uint8) *WxSend {
 }
 
 func WxPushSendHandler(c *gin.Context) {
+	client := http.Client{
+		Transport: &http.Transport{DisableKeepAlives: true},
+	}
 	// 以下为必须参数
 	uid := c.Query("uid")
 	content := c.Query("content")
@@ -95,7 +98,7 @@ func WxPushSendHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "参数格式化失败，请检测数据合法性"})
 		return
 	}
-	rep, err := http.Post("https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token="+accessToken, "application/json", bytes.NewReader(marshal))
+	rep, err := client.Post("https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token="+accessToken, "application/json", bytes.NewReader(marshal))
 	if err != nil || rep.StatusCode != 200 {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"code": 501, "msg": err.Error()})
@@ -103,6 +106,7 @@ func WxPushSendHandler(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"code": 501, "msg": "状态码为" + rep.Status})
 		}
 	} else {
+		defer rep.Body.Close()
 		wxRep, err := UnmarshalWxRep(RepBodyToByteSlice(rep.Body))
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"code": 504, "msg": "请求已发送，但解析响应数据失败"})
