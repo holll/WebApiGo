@@ -2,10 +2,13 @@ package tools
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	_ "github.com/mattn/go-sqlite3"
 	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -49,8 +52,10 @@ func (r *WxRep) Marshal() ([]byte, error) {
 }
 
 type WxRep struct {
-	Errcode int64  `json:"errcode"`
-	Errmsg  string `json:"errmsg"`
+	Errcode     int64  `json:"errcode"`
+	Errmsg      string `json:"errmsg"`
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int64  `json:"expires_in"`
 }
 
 func NewWxSendJson(uid, content, agentId, rawUrl string, check uint8) *WxSend {
@@ -121,7 +126,67 @@ func WxPushSendHandler(c *gin.Context) {
 }
 
 func WxPushUpdateHandler(c *gin.Context) {
-	// Todo 记录程序运行时有哪些更新请求，并持久化记录，在程序重启后，自动执行所有请求并写入缓存
+	params := url.Values{}
+	Url, err := url.Parse("https://qyapi.weixin.qq.com/cgi-bin/gettoken")
+	if err != nil {
+		return
+	}
+	corpid := c.Query("corpid")
+	corpsecret := c.Query("corpsecret")
+	agentid := c.Query("agentid")
+	if len(corpid) == 0 || len(corpsecret) == 0 || len(agentid) == 0 {
+		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "缺少必须参数"})
+		return
+	}
+	params.Set("corpid", corpid)
+	params.Set("corpsecret", corpsecret)
+	//如果参数中有中文参数,这个方法会进行URLEncode
+	Url.RawQuery = params.Encode()
+	urlPath := Url.String()
+	rep, err := http.Get(urlPath)
+	if err != nil || rep.StatusCode != 200 {
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"code": 501, "msg": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, gin.H{"code": 501, "msg": "状态码为" + rep.Status})
+		}
+	} else {
+		defer rep.Body.Close()
+		wxRep, err := UnmarshalWxRep(RepBodyToByteSlice(rep.Body))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"code": 504, "msg": "请求已发送，但解析响应数据失败"})
+			return
+		}
+		if wxRep.Errcode != 0 {
+			c.JSON(http.StatusOK, gin.H{"code": 505, "msg": wxRep.Errmsg})
+			return
+		}
+		accessToken := wxRep.AccessToken
+		db, err := sql.Open("sqlite3", "data.db")
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"code": 500, "msg": err.Error()})
+			return
+		}
+		defer db.Close()
+		var reSqlStr string
+		selectSql := fmt.Sprintf("SELECT accesstoken FROM Token where corpid = '%s' AND agentid = '%s'", corpid, agentid)
+		insertSql := fmt.Sprintf("INSERT INTO TOKEN (corpid,corpsecret,agentid,accesstoken) VALUES (%s, %s, %s, %s);", corpid, corpsecret, agentid, accessToken)
+		updateSql := fmt.Sprintf("UPDATE TOKEN SET accesstoken = '%s' WHERE corpsecret = '%s';", accessToken, corpsecret)
+		err = db.QueryRow(selectSql).Scan(&reSqlStr)
+		if err != nil {
+			fmt.Println(fmt.Sprintf("企业：%s，应用：%s，token已存在", corpid, agentid))
+			_, err = db.Exec(updateSql)
+			if err != nil {
+				c.JSON(http.StatusOK, gin.H{"code": 500, "msg": err.Error()})
+			}
+		} else {
+			_, err = db.Exec(insertSql)
+			if err != nil {
+				c.JSON(http.StatusOK, gin.H{"code": 500, "msg": err.Error()})
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"code": 200, "msg": "更新成功"})
+	}
 }
 
 func WxPushCleanHandler(c *gin.Context) {

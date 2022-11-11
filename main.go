@@ -51,7 +51,6 @@ func Authorize(c *gin.Context) {
 	timeStamp, _ := strconv.ParseInt(t, 10, 64)
 	nowTimeStamp := time.Now().Unix()
 
-	// Todo 两套鉴权 普通接口和管理员接口
 	saltToken := UserTokenSalt
 	if tools.IsInStrSlice(c.FullPath(), adminRoute) {
 		saltToken = AdminTokenSalt
