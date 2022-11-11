@@ -41,3 +41,12 @@ func MD5(data []byte) string {
 	_md5.Write(data)
 	return hex.EncodeToString(_md5.Sum([]byte("")))
 }
+
+func IsInStrSlice(str string, strSlice []string) bool {
+	for _, tmpStr := range strSlice {
+		if str == tmpStr {
+			return true
+		}
+	}
+	return false
+}

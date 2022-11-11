@@ -121,5 +121,9 @@ func WxPushSendHandler(c *gin.Context) {
 }
 
 func WxPushUpdateHandler(c *gin.Context) {
+	// Todo 记录程序运行时有哪些更新请求，并持久化记录，在程序重启后，自动执行所有请求并写入缓存
+}
 
+func WxPushCleanHandler(c *gin.Context) {
+	// Todo 清理数据库，日志清除和accessToken清除
 }

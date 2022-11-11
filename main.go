@@ -12,9 +12,11 @@ import (
 )
 
 const (
-	// TokenSalt 可自定义盐值
-	TokenSalt = "default_salt"
+	UserTokenSalt  = "default_salt"
+	AdminTokenSalt = "admin_salt"
 )
+
+var adminRoute = []string{"/wxpush/send"}
 
 func main() {
 	router := gin.Default() //获得路由实例
@@ -33,6 +35,7 @@ func main() {
 	{
 		wxPushGroup.GET("/send", tools.WxPushSendHandler)
 		wxPushGroup.GET("/update", tools.WxPushUpdateHandler)
+		wxPushGroup.GET("/clean", tools.WxPushCleanHandler)
 	}
 	//监听端口
 	err = http.ListenAndServe(":8005", router)
@@ -48,7 +51,12 @@ func Authorize(c *gin.Context) {
 	timeStamp, _ := strconv.ParseInt(t, 10, 64)
 	nowTimeStamp := time.Now().Unix()
 
-	if strings.ToLower(tools.MD5([]byte(t+TokenSalt))) == strings.ToLower(token) && math.Abs(float64(nowTimeStamp-timeStamp)) < 30 {
+	// Todo 两套鉴权 普通接口和管理员接口
+	saltToken := UserTokenSalt
+	if tools.IsInStrSlice(c.FullPath(), adminRoute) {
+		saltToken = AdminTokenSalt
+	}
+	if strings.ToLower(tools.MD5([]byte(t+saltToken))) == strings.ToLower(token) && math.Abs(float64(nowTimeStamp-timeStamp)) < 30 {
 		// 验证通过，会继续访问下一个中间件
 		c.Next()
 	} else {
