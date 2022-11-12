@@ -168,19 +168,15 @@ func WxPushUpdateHandler(c *gin.Context) {
 			return
 		}
 		defer db.Close()
-		var reSqlStr string
-		selectSql := fmt.Sprintf("SELECT accesstoken FROM Token where corpid = '%s' AND agentid = '%s'", corpid, agentid)
-		insertSql := fmt.Sprintf("INSERT INTO TOKEN (corpid,corpsecret,agentid,accesstoken) VALUES (%s, %s, %s, %s);", corpid, corpsecret, agentid, accessToken)
-		updateSql := fmt.Sprintf("UPDATE TOKEN SET accesstoken = '%s' WHERE corpsecret = '%s';", accessToken, corpsecret)
-		err = db.QueryRow(selectSql).Scan(&reSqlStr)
-		if err != nil {
+
+		if !IsNewAgent(corpid, agentid) {
 			fmt.Println(fmt.Sprintf("企业：%s，应用：%s，token已存在", corpid, agentid))
-			_, err = db.Exec(updateSql)
+			err = UpdateDb(corpsecret, accessToken)
 			if err != nil {
 				c.JSON(http.StatusOK, gin.H{"code": 500, "msg": err.Error()})
 			}
 		} else {
-			_, err = db.Exec(insertSql)
+			err = InsertDb(corpid, corpsecret, agentid, accessToken)
 			if err != nil {
 				c.JSON(http.StatusOK, gin.H{"code": 500, "msg": err.Error()})
 			}
