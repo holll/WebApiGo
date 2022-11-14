@@ -91,7 +91,7 @@ func WxPushSendHandler(c *gin.Context) {
 		check = 0
 	}
 	rawUrl := c.Query("url")
-	tmpAccessToken, err := os.ReadFile("a.txt")
+	accessToken, err := SearchToken()
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "读取AccessToken失败"})
 		return
@@ -125,6 +125,7 @@ func WxPushSendHandler(c *gin.Context) {
 	}
 }
 
+// WxPushUpdateHandler 必须参数为corpid,corpsecret,agentid
 func WxPushUpdateHandler(c *gin.Context) {
 	params := url.Values{}
 	Url, err := url.Parse("https://qyapi.weixin.qq.com/cgi-bin/gettoken")

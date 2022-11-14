@@ -56,3 +56,16 @@ func IsNewAgent(corpid, agentid string) bool {
 	}
 	return false
 }
+
+func SearchToken(corpid, agentid string) (string, error) {
+	data := openDb()
+	defer data.Close()
+	var accessToken string
+	selectSql := fmt.Sprintf("SELECT accesstoken FROM Token where corpid = '%s' AND agentid = '%s'", corpid, agentid)
+	err := data.QueryRow(selectSql).Scan(&accessToken)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println(accessToken)
+	return accessToken, nil
+}

@@ -3,8 +3,11 @@ package tools
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io"
+	"math/rand"
 	"os"
+	"time"
 )
 
 func RepBodyToStr(body io.ReadCloser) string {
@@ -49,4 +52,32 @@ func IsInStrSlice(str string, strSlice []string) bool {
 		}
 	}
 	return false
+}
+
+func RandomPassWord(n int) string {
+	var UpperLetter []string
+	var LowerLetter []string
+	var Number []string
+	var randomPassword string
+	for i := 'a'; i <= 'z'; i++ {
+		LowerLetter = append(LowerLetter, fmt.Sprintf("%c", i))
+	}
+	for i := 'A'; i <= 'Z'; i++ {
+		UpperLetter = append(UpperLetter, fmt.Sprintf("%c", i))
+	}
+	for i := '0'; i <= '9'; i++ {
+		Number = append(Number, fmt.Sprintf("%c", i))
+	}
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < n; i++ {
+		switch rand.Intn(3) {
+		case 0:
+			randomPassword += LowerLetter[rand.Intn(len(LowerLetter))]
+		case 1:
+			randomPassword += UpperLetter[rand.Intn(len(UpperLetter))]
+		case 2:
+			randomPassword += Number[rand.Intn(len(Number))]
+		}
+	}
+	return randomPassword
 }
