@@ -19,12 +19,10 @@ const (
 var adminRoute = []string{"/wxpush/send"}
 
 func main() {
-	exists, err := tools.PathExists("./data/data.db")
-	if !exists && err == nil {
-		tools.InitDb()
-	}
+	tools.InitSeed()
+	tools.InitDb()
 	router := gin.Default() //获得路由实例
-	exists, err = tools.PathExists("debug")
+	exists, err := tools.PathExists("debug")
 	if exists && err == nil {
 		gin.SetMode(gin.DebugMode)
 		fmt.Println("当前为测试环境")

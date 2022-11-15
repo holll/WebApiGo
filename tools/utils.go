@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+func InitSeed() {
+	rand.Seed(time.Now().Unix())
+}
+
 func RepBodyToStr(body io.ReadCloser) string {
 	repBody, err := io.ReadAll(body)
 	if err != nil {
@@ -68,7 +72,6 @@ func RandomPassWord(n int) string {
 	for i := '0'; i <= '9'; i++ {
 		Number = append(Number, fmt.Sprintf("%c", i))
 	}
-	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < n; i++ {
 		switch rand.Intn(3) {
 		case 0:

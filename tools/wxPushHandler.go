@@ -9,7 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"net/http"
 	"net/url"
-	"os"
 )
 
 // This file was generated from JSON Schema using quicktype, do not modify it directly.
@@ -79,8 +78,8 @@ func WxPushSendHandler(c *gin.Context) {
 	// 以下为必须参数
 	uid := c.Query("uid")
 	content := c.Query("content")
-	agentId := c.Query("agentid")
-	if len(uid) == 0 || len(content) == 0 || len(agentId) == 0 {
+	wxToken := c.Query("wxToken")
+	if len(uid) == 0 || len(content) == 0 || len(wxToken) == 0 {
 		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "缺少必须参数"})
 		return
 	}
@@ -91,12 +90,11 @@ func WxPushSendHandler(c *gin.Context) {
 		check = 0
 	}
 	rawUrl := c.Query("url")
-	accessToken, err := SearchToken()
+	agentId, accessToken, err := SearchToken(wxToken)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "读取AccessToken失败"})
+		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": fmt.Sprintf("读取AccessToken失败：%s", err)})
 		return
 	}
-	accessToken := string(tmpAccessToken)
 	data := NewWxSendJson(uid, content, agentId, rawUrl, check)
 	marshal, err := data.Marshal()
 	if err != nil {
@@ -127,16 +125,17 @@ func WxPushSendHandler(c *gin.Context) {
 
 // WxPushUpdateHandler 必须参数为corpid,corpsecret,agentid
 func WxPushUpdateHandler(c *gin.Context) {
+	corpid := c.Query("corpid")
+	corpsecret := c.Query("corpsecret")
+	agentid := c.Query("agentid") // 有wxToken的时候可不传
+	wxToken := c.Query("wxToken")
+	if len(corpid) == 0 || len(corpsecret) == 0 || (len(agentid) == 0 && len(wxToken) == 0) {
+		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "缺少必须参数"})
+		return
+	}
 	params := url.Values{}
 	Url, err := url.Parse("https://qyapi.weixin.qq.com/cgi-bin/gettoken")
 	if err != nil {
-		return
-	}
-	corpid := c.Query("corpid")
-	corpsecret := c.Query("corpsecret")
-	agentid := c.Query("agentid")
-	if len(corpid) == 0 || len(corpsecret) == 0 || len(agentid) == 0 {
-		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "缺少必须参数"})
 		return
 	}
 	params.Set("corpid", corpid)
@@ -170,14 +169,17 @@ func WxPushUpdateHandler(c *gin.Context) {
 		}
 		defer db.Close()
 
-		if !IsNewAgent(corpid, agentid) {
-			fmt.Println(fmt.Sprintf("企业：%s，应用：%s，token已存在", corpid, agentid))
-			err = UpdateDb(corpsecret, accessToken)
+		if IsNewAgent(corpid, agentid) {
+			wxToken = RandomPassWord(20)
+			err = InsertDb(corpid, corpsecret, agentid, accessToken, wxToken)
 			if err != nil {
 				c.JSON(http.StatusOK, gin.H{"code": 500, "msg": err.Error()})
 			}
+			c.JSON(http.StatusOK, gin.H{"code": 200, "msg": "第一次添加应用，请保存好wxToken", "token": wxToken})
+			return
 		} else {
-			err = InsertDb(corpid, corpsecret, agentid, accessToken)
+			fmt.Println(fmt.Sprintf("企业：%s，应用：%s，token已存在", corpid, agentid))
+			err = UpdateDb(accessToken, wxToken)
 			if err != nil {
 				c.JSON(http.StatusOK, gin.H{"code": 500, "msg": err.Error()})
 			}
