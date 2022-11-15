@@ -2,6 +2,7 @@ package main
 
 import (
 	"WebApiGo/tools"
+	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"math"
@@ -40,7 +41,10 @@ func main() {
 		wxPushGroup.GET("/clean", tools.WxPushCleanHandler)
 	}
 	//监听端口
-	err = http.ListenAndServe(":8005", router)
+	port := flag.String("port", "8005", "端口")
+	flag.Parse()
+	fmt.Println("启动端口为：", *port)
+	err = http.ListenAndServe(fmt.Sprintf(":%s", *port), router)
 	if err != nil {
 		fmt.Println(err)
 		return
