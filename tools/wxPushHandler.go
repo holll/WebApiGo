@@ -90,7 +90,7 @@ func WxPushSendHandler(c *gin.Context) {
 		check = 0
 	}
 	rawUrl := c.Query("url")
-	agentId, accessToken, err := SearchToken(wxToken)
+	agentId, accessToken, err := SearchPushToken(wxToken)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": fmt.Sprintf("读取AccessToken失败：%s", err)})
 		return
@@ -116,6 +116,9 @@ func WxPushSendHandler(c *gin.Context) {
 			return
 		}
 		if wxRep.Errcode != 0 {
+			if wxRep.Errcode == 40014 {
+				// Todo 重发机制
+			}
 			c.JSON(http.StatusOK, gin.H{"code": 505, "msg": wxRep.Errmsg})
 			return
 		}
@@ -125,9 +128,9 @@ func WxPushSendHandler(c *gin.Context) {
 
 // WxPushUpdateHandler 必须参数为corpid,corpsecret,agentid
 func WxPushUpdateHandler(c *gin.Context) {
-	corpid := c.Query("corpid")
-	corpsecret := c.Query("corpsecret")
-	agentid := c.Query("agentid") // 有wxToken的时候可不传
+	corpid := c.Query("corpid")         // 有wxToken的时候可不传
+	corpsecret := c.Query("corpsecret") // 有wxToken的时候可不传
+	agentid := c.Query("agentid")       // 有wxToken的时候可不传
 	wxToken := c.Query("wxToken")
 	if len(corpid) == 0 || len(corpsecret) == 0 || (len(agentid) == 0 && len(wxToken) == 0) {
 		c.JSON(http.StatusOK, gin.H{"code": 502, "msg": "缺少必须参数"})
@@ -137,6 +140,9 @@ func WxPushUpdateHandler(c *gin.Context) {
 	Url, err := url.Parse("https://qyapi.weixin.qq.com/cgi-bin/gettoken")
 	if err != nil {
 		return
+	}
+	if len(wxToken) > 0 {
+		corpid, corpsecret, _ = SearchUpdateToken(wxToken)
 	}
 	params.Set("corpid", corpid)
 	params.Set("corpsecret", corpsecret)

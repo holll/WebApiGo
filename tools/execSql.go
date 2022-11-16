@@ -73,7 +73,7 @@ func IsNewAgent(corpid, agentid string) bool {
 	return false
 }
 
-func SearchToken(token string) (string, string, error) {
+func SearchPushToken(token string) (string, string, error) {
 	data := openDb()
 	defer data.Close()
 	var agentId string
@@ -84,4 +84,17 @@ func SearchToken(token string) (string, string, error) {
 		return "", "", err
 	}
 	return agentId, accessToken, nil
+}
+
+func SearchUpdateToken(token string) (string, string, error) {
+	data := openDb()
+	defer data.Close()
+	var corpid string
+	var corpsecret string
+	selectSql := fmt.Sprintf("SELECT corpid,corpsecret FROM Token where token = '%s'", token)
+	err := data.QueryRow(selectSql).Scan(&corpid, &corpsecret)
+	if err != nil {
+		return "", "", err
+	}
+	return corpid, corpsecret, nil
 }
