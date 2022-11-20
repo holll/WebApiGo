@@ -22,7 +22,8 @@ var adminRoute = []string{"/wxpush/send"}
 
 func main() {
 	tools.InitSeed()
-	tools.InitDb()
+	db := tools.ReadSql{}
+	db.Init()
 	port := flag.String("port", "8005", "端口")
 	rate := flag.Float64("rate", 0, "每秒最大访问次数")
 	flag.Parse()

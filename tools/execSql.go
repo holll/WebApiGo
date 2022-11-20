@@ -4,27 +4,20 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	"log"
 	"os"
 )
 
-const initSqlCmd = "CREATE TABLE TOKEN( corpid VARCHAR(30) NOT NULL, corpsecret VARCHAR(50) NOT NULL, agentid VARCHAR(10) NOT NULL, accesstoken VARCHAR(250) NOT NULL, token CHAR(20) NOT NULL UNIQUE );"
-
-func openDb() *sql.DB {
-	data, err := sql.Open("sqlite3", "./data/data.db")
-	if err != nil {
-		log.Fatalln("数据库打开失败")
-	}
-	return data
+type ReadSql struct {
+	conn *sql.DB
 }
 
-func InitDb() {
+func (s ReadSql) Init() {
 	exist, err := PathExists("./data")
 	if !exist && err == nil {
 		os.Mkdir("data", os.ModePerm)
 	}
-	data := openDb()
-	defer data.Close()
+	data, _ := sql.Open("sqlite3", "./data/data.db")
+	s.conn = data
 	exists, err := PathExists("./data/data.db")
 	if !exists && err == nil {
 		fmt.Println("初始化数据库")
@@ -35,37 +28,31 @@ func InitDb() {
 	}
 }
 
-func InsertDb(corpid, corpsecret, agentid, accessToken, token string) error {
-	data := openDb()
-	defer data.Close()
+func (s ReadSql) InsertDb(corpid, corpsecret, agentid, accessToken, token string) error {
 	insertSql := fmt.Sprintf("INSERT INTO TOKEN (corpid,corpsecret,agentid,accesstoken,token) VALUES ('%s', '%s', '%s', '%s', '%s');", corpid, corpsecret, agentid, accessToken, token)
-	_, err := data.Exec(insertSql)
+	_, err := s.conn.Exec(insertSql)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func UpdateDb(accessToken, token string) error {
-	data := openDb()
-	defer data.Close()
+func (s ReadSql) UpdateDb(accessToken, token string) error {
 	updateSql := fmt.Sprintf("UPDATE TOKEN SET accesstoken = '%s' WHERE token = '%s';", accessToken, token)
-	_, err := data.Exec(updateSql)
+	_, err := s.conn.Exec(updateSql)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func IsNewAgent(corpid, agentid string) bool {
-	data := openDb()
-	defer data.Close()
+func (s ReadSql) IsNewAgent(corpid, agentid string) bool {
 	if len(corpid) == 0 || len(agentid) == 0 {
 		return false
 	}
 	var reSqlStr string
 	selectSql := fmt.Sprintf("SELECT accesstoken FROM Token where corpid = '%s' AND agentid = '%s'", corpid, agentid)
-	err := data.QueryRow(selectSql).Scan(&reSqlStr)
+	err := s.conn.QueryRow(selectSql).Scan(&reSqlStr)
 	fmt.Println(reSqlStr, err)
 	if len(reSqlStr) == 0 && err != nil {
 		return true
@@ -73,26 +60,22 @@ func IsNewAgent(corpid, agentid string) bool {
 	return false
 }
 
-func SearchPushToken(token string) (string, string, error) {
-	data := openDb()
-	defer data.Close()
+func (s ReadSql) SearchPushToken(token string) (string, string, error) {
 	var agentId string
 	var accessToken string
 	selectSql := fmt.Sprintf("SELECT agentid,accesstoken FROM Token where token = '%s'", token)
-	err := data.QueryRow(selectSql).Scan(&agentId, &accessToken)
+	err := s.conn.QueryRow(selectSql).Scan(&agentId, &accessToken)
 	if err != nil {
 		return "", "", err
 	}
 	return agentId, accessToken, nil
 }
 
-func SearchUpdateToken(token string) (string, string, error) {
-	data := openDb()
-	defer data.Close()
+func (s ReadSql) SearchUpdateToken(token string) (string, string, error) {
 	var corpid string
 	var corpsecret string
 	selectSql := fmt.Sprintf("SELECT corpid,corpsecret FROM Token where token = '%s'", token)
-	err := data.QueryRow(selectSql).Scan(&corpid, &corpsecret)
+	err := s.conn.QueryRow(selectSql).Scan(&corpid, &corpsecret)
 	if err != nil {
 		return "", "", err
 	}
