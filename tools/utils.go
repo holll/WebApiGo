@@ -1,33 +1,17 @@
 package tools
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"bytes"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 )
 
 func InitSeed() {
 	rand.Seed(time.Now().Unix())
-}
-
-func RepBodyToStr(body io.ReadCloser) string {
-	repBody, err := io.ReadAll(body)
-	if err != nil {
-		return ""
-	}
-	return string(repBody)
-}
-
-func RepBodyToByteSlice(body io.ReadCloser) []byte {
-	repBody, err := io.ReadAll(body)
-	if err != nil {
-		return make([]byte, 0)
-	}
-	return repBody
 }
 
 // PathExists 判断所给路径文件/文件夹是否存在
@@ -43,44 +27,49 @@ func PathExists(path string) (bool, error) {
 	return false, err //如果有错误了，但是不是不存在的错误，所以把这个错误原封不动的返回
 }
 
-func MD5(data []byte) string {
-	_md5 := md5.New()
-	_md5.Write(data)
-	return hex.EncodeToString(_md5.Sum([]byte("")))
+func TransHtmlJson(data []byte) []byte {
+	data = bytes.Replace(data, []byte("\\u0026"), []byte("&"), -1)
+	data = bytes.Replace(data, []byte("\\u003c"), []byte("<"), -1)
+	data = bytes.Replace(data, []byte("\\u003e"), []byte(">"), -1)
+	return data
 }
 
-func IsInStrSlice(str string, strSlice []string) bool {
-	for _, tmpStr := range strSlice {
-		if str == tmpStr {
-			return true
-		}
+// ParseCQ 解析CQ码，返回map
+func ParseCQ(cq string) map[string]string {
+	cqMap := make(map[string]string)
+	if len(cq) <= 2 {
+		return cqMap
 	}
-	return false
+	cq = cq[1 : len(cq)-1]
+	if strings.Index(cq, "CQ") != 0 {
+		return cqMap
+	}
+	cqSlice := strings.Split(cq, ",")
+	cqType := strings.Split(cqSlice[0], ":")
+	cqMap[cqType[0]] = cqType[1]
+	cqSlice = cqSlice[1:]
+	for _, tmpStr := range cqSlice {
+		tmpSlice := strings.SplitN(tmpStr, "=", 2)
+		tmpKey := tmpSlice[0]
+		tmpValue := tmpSlice[1]
+		cqMap[tmpKey] = tmpValue
+	}
+	return cqMap
 }
 
-func RandomPassWord(n int) string {
-	var UpperLetter []string
-	var LowerLetter []string
-	var Number []string
-	var randomPassword string
-	for i := 'a'; i <= 'z'; i++ {
-		LowerLetter = append(LowerLetter, fmt.Sprintf("%c", i))
+func QQUrlToMd5(url string) string {
+	reg := regexp.MustCompile("[a-f\\d]{32}|[A-F\\d]{32}")
+	rep := reg.FindAllString(url, -1)
+	if len(rep) == 0 {
+		return ""
 	}
-	for i := 'A'; i <= 'Z'; i++ {
-		UpperLetter = append(UpperLetter, fmt.Sprintf("%c", i))
+	return rep[0]
+}
+
+func PicMd5ToUrl(md5 string) string {
+	if len(md5) == 0 {
+		return "图片地址解析失败"
 	}
-	for i := '0'; i <= '9'; i++ {
-		Number = append(Number, fmt.Sprintf("%c", i))
-	}
-	for i := 0; i < n; i++ {
-		switch rand.Intn(3) {
-		case 0:
-			randomPassword += LowerLetter[rand.Intn(len(LowerLetter))]
-		case 1:
-			randomPassword += UpperLetter[rand.Intn(len(UpperLetter))]
-		case 2:
-			randomPassword += Number[rand.Intn(len(Number))]
-		}
-	}
-	return randomPassword
+	rawUrl := fmt.Sprintf("https://gchat.qpic.cn/gchatpic_new/0/-0-%s/0", md5)
+	return rawUrl
 }
