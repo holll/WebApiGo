@@ -27,10 +27,18 @@ func PathExists(path string) (bool, error) {
 	return false, err //如果有错误了，但是不是不存在的错误，所以把这个错误原封不动的返回
 }
 
-func TransHtmlJson(data []byte) []byte {
+func BytesHtmlToJson(data []byte) []byte {
 	data = bytes.Replace(data, []byte("\\u0026"), []byte("&"), -1)
 	data = bytes.Replace(data, []byte("\\u003c"), []byte("<"), -1)
 	data = bytes.Replace(data, []byte("\\u003e"), []byte(">"), -1)
+	return data
+}
+
+func StrHtmlToJson(data string) string {
+	data = strings.Replace(data, "&#91;", "[", -1)
+	data = strings.Replace(data, "&#93;", "]", -1)
+	data = strings.Replace(data, "&#44;", ",", -1)
+	data = strings.Replace(data, "&amp;", "&", -1)
 	return data
 }
 
