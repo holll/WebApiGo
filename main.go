@@ -36,22 +36,23 @@ func main() {
 		if postType == "message" {
 			message := gjson.Get(jsonData, "message").String()
 			cq := tools.ParseCQ(message)
-			if cq["CQ"] == "image" {
+			switch cq["CQ"] {
+			case "image":
 				picMd5 := tools.QQUrlToMd5(cq["url"])
 				context.JSON(http.StatusOK, gin.H{
 					"reply": tools.PicMd5ToUrl(picMd5),
 				})
-			} else if cq["CQ"] == "video" {
+			case "video":
 				context.JSON(http.StatusOK, gin.H{
 					"reply": cq["url"],
 				})
-			} else if cq["CQ"] != "" {
-				context.JSON(http.StatusOK, gin.H{
-					"reply": fmt.Sprintf("暂不支持的CQ码类型：%s", cq["CQ"]),
-				})
-			} else {
+			case "":
 				context.JSON(http.StatusOK, gin.H{
 					"reply": message,
+				})
+			default:
+				context.JSON(http.StatusOK, gin.H{
+					"reply": fmt.Sprintf("暂不支持的CQ码类型：%s", cq["CQ"]),
 				})
 			}
 		} else if postType == "notice" {
