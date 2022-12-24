@@ -10,9 +10,6 @@ import (
 )
 
 func main() {
-	client := http.Client{
-		Transport: &http.Transport{DisableKeepAlives: true},
-	}
 	tools.InitSeed()
 
 	port := "9091"
@@ -62,8 +59,7 @@ func main() {
 			userId := gjson.Get(jsonData, "user_id").String()
 			if noticeType == "offline_file" {
 				fileUrl := gjson.Get(jsonData, "file.url").String()
-				// Todo 进一步封装接口
-				client.Get(fmt.Sprintf("%s?user_id=%s&message=%s", tools.SendMsgPri, userId, fileUrl))
+				tools.SendMsgPri(userId, fileUrl)
 			}
 		}
 	})
