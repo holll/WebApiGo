@@ -10,6 +10,9 @@ import (
 )
 
 func main() {
+	client := http.Client{
+		Transport: &http.Transport{DisableKeepAlives: true},
+	}
 	tools.InitSeed()
 
 	port := "9091"
@@ -56,13 +59,11 @@ func main() {
 			}
 		} else if postType == "notice" {
 			noticeType := gjson.Get(jsonData, "notice_type").String()
+			userId := gjson.Get(jsonData, "user_id").String()
 			if noticeType == "offline_file" {
 				fileUrl := gjson.Get(jsonData, "file.url").String()
-				fmt.Println(fileUrl)
-				// Todo notice消息无法使用快捷回复
-				context.JSON(http.StatusOK, gin.H{
-					"reply": fileUrl,
-				})
+				// Todo 进一步封装接口
+				client.Get(fmt.Sprintf("%s?user_id=%s&message=%s", tools.SendMsgPri, userId, fileUrl))
 			}
 		}
 	})
