@@ -124,11 +124,8 @@ func OnMessage(context *gin.Context) {
 			context.JSON(http.StatusOK, gin.H{
 				"reply": cq["url"],
 			})
-		//case "":
-		//	context.JSON(http.StatusOK, gin.H{
-		//		"reply": message,
-		//	})
-		default:
+		case "":
+			// 无CQ码的普通消息
 			if strings.Index(message, "BV") == 0 {
 				var ban bool
 				msg := "已经提交下载任务"
@@ -161,11 +158,15 @@ func OnMessage(context *gin.Context) {
 					}
 				}()
 			} else {
+				// 未匹配到指定操作时复读
 				context.JSON(http.StatusOK, gin.H{
-					"reply": fmt.Sprintf("暂不支持的CQ码类型：%s", cq["CQ"]),
+					"reply": message,
 				})
 			}
-
+		default:
+			context.JSON(http.StatusOK, gin.H{
+				"reply": fmt.Sprintf("暂不支持的CQ码类型：%s", cq["CQ"]),
+			})
 		}
 	} else if postType == "notice" {
 		noticeType := gjson.Get(jsonData, "notice_type").String()
