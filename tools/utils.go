@@ -139,7 +139,7 @@ func OnMessage(context *gin.Context) {
 				}
 				if len(runTask) != 0 {
 					ban = true
-					msg = fmt.Sprintf("有正在运行的任务：%s", message)
+					msg = fmt.Sprintf("有正在运行的任务：%s", runTask[0])
 				}
 				context.JSON(http.StatusOK, gin.H{
 					"reply": msg,
@@ -149,6 +149,7 @@ func OnMessage(context *gin.Context) {
 				}
 				runTask = append(runTask, message)
 				go func() {
+					defer cleanTask()
 					BBDownPath := "/opt/BBDown/BBDown"
 					if runtime.GOOS == "windows" {
 						BBDownPath = "E:\\重装系统\\常用工具\\BBDown.exe"
@@ -174,6 +175,10 @@ func OnMessage(context *gin.Context) {
 			SendMsgPri(userId, fileUrl)
 		}
 	}
+}
+
+func cleanTask() {
+	runTask = make([]string, 0)
 }
 
 func Command(path, execPath string, arg ...string) (msg string, err error) {
