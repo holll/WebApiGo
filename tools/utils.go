@@ -176,29 +176,20 @@ func OnMessage(context *gin.Context) {
 	}
 }
 
-func Command(path string, arg ...string) (msg string, err error) {
+func Command(path, execPath string, arg ...string) (msg string, err error) {
+	var cmd *exec.Cmd
 	name := "/bin/bash"
 	c := "-c"
 	// 根据系统设定不同的命令name
 	if runtime.GOOS == "windows" {
 		name = "cmd"
 		c = "/C"
-		arg = append([]string{c}, arg...)
+		arg = append([]string{c, execPath}, arg...)
+		cmd = exec.Command(name, arg...)
 	} else {
-		var fullArg string
-		fullArg += "\""
-		argLen := len(arg)
-		for num, tmpArg := range arg {
-			fullArg += tmpArg
-			if num != argLen-1 {
-				fullArg += " "
-			}
-		}
-		fullArg += "\""
-		arg = append([]string{c}, fullArg)
+		cmd = exec.Command(execPath, arg...)
 	}
 
-	cmd := exec.Command(name, arg...)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
