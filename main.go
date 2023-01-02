@@ -27,6 +27,7 @@ func main() {
 
 	err = router.Run(fmt.Sprintf(":%s", port))
 	if err != nil {
+		fmt.Println("端口已被占用")
 		return
 	}
 }
