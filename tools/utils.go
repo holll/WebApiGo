@@ -183,8 +183,21 @@ func Command(path string, arg ...string) (msg string, err error) {
 	if runtime.GOOS == "windows" {
 		name = "cmd"
 		c = "/C"
+		arg = append([]string{c}, arg...)
+	} else {
+		var fullArg string
+		fullArg += "\""
+		argLen := len(arg)
+		for num, tmpArg := range arg {
+			fullArg += tmpArg
+			if num != argLen-1 {
+				fullArg += " "
+			}
+		}
+		fullArg += "\""
+		arg = append([]string{c}, fullArg)
 	}
-	arg = append([]string{c}, arg...)
+
 	cmd := exec.Command(name, arg...)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
