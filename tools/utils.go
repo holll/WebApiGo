@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -191,7 +192,7 @@ func Command(path string, arg ...string) (msg string, err error) {
 	cmd.Stderr = &stderr
 	cmd.Dir = path
 	err = cmd.Run()
-	//log.Println(cmd.Args)
+	log.Println(cmd.Args)
 	if err != nil {
 		msg = fmt.Sprint(err) + ": " + stderr.String()
 		err = errors.New(msg)
