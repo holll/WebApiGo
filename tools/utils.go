@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -9,10 +10,14 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 )
+
+var runTask = make([]string, 0)
 
 func InitSeed() {
 	rand.Seed(time.Now().Unix())
@@ -86,6 +91,18 @@ func PicMd5ToUrl(md5 string) string {
 	return rawUrl
 }
 
+func strInSlice(strSlice []string, str string) bool {
+	if len(strSlice) == 0 {
+		return false
+	}
+	for _, strS := range strSlice {
+		if strS == str {
+			return true
+		}
+	}
+	return false
+}
+
 func OnMessage(context *gin.Context) {
 	dataReader := context.Request.Body
 	rawData, _ := io.ReadAll(dataReader)
@@ -93,6 +110,7 @@ func OnMessage(context *gin.Context) {
 	jsonData := string(rawData)
 	jsonData = StrHtmlToJson(jsonData)
 	postType := gjson.Get(jsonData, "post_type").String()
+	userId := gjson.Get(jsonData, "user_id").String()
 	if postType == "message" {
 		message := gjson.Get(jsonData, "message").String()
 		cq := ParseCQ(message)
@@ -106,21 +124,79 @@ func OnMessage(context *gin.Context) {
 			context.JSON(http.StatusOK, gin.H{
 				"reply": cq["url"],
 			})
-		case "":
-			context.JSON(http.StatusOK, gin.H{
-				"reply": message,
-			})
+		//case "":
+		//	context.JSON(http.StatusOK, gin.H{
+		//		"reply": message,
+		//	})
 		default:
-			context.JSON(http.StatusOK, gin.H{
-				"reply": fmt.Sprintf("暂不支持的CQ码类型：%s", cq["CQ"]),
-			})
+			if strings.Index(message, "BV") == 0 {
+				var ban bool
+				msg := "已经提交下载任务"
+				if strInSlice(runTask, message) {
+					ban = true
+					msg = "该任务下载中"
+				}
+				if len(runTask) != 0 {
+					ban = true
+					msg = fmt.Sprintf("有正在运行的任务：%s", message)
+				}
+				context.JSON(http.StatusOK, gin.H{
+					"reply": msg,
+				})
+				if ban {
+					return
+				}
+				runTask = append(runTask, message)
+				go func() {
+					BBDownPath := "/opt/BBDown/BBDown"
+					if runtime.GOOS == "windows" {
+						BBDownPath = "E:\\重装系统\\常用工具\\BBDown.exe"
+					}
+					_, err := Command("/", BBDownPath, message)
+					if err != nil {
+						SendMsgPri(userId, fmt.Sprintf("下载失败：%s", err.Error()))
+					} else {
+						SendMsgPri(userId, fmt.Sprintf("下载成功：%s", message))
+					}
+				}()
+			} else {
+				context.JSON(http.StatusOK, gin.H{
+					"reply": fmt.Sprintf("暂不支持的CQ码类型：%s", cq["CQ"]),
+				})
+			}
+
 		}
 	} else if postType == "notice" {
 		noticeType := gjson.Get(jsonData, "notice_type").String()
-		userId := gjson.Get(jsonData, "user_id").String()
 		if noticeType == "offline_file" {
 			fileUrl := gjson.Get(jsonData, "file.url").String()
 			SendMsgPri(userId, fileUrl)
 		}
 	}
+}
+
+func Command(path string, arg ...string) (msg string, err error) {
+	name := "/bin/bash"
+	c := "-c"
+	// 根据系统设定不同的命令name
+	if runtime.GOOS == "windows" {
+		name = "cmd"
+		c = "/C"
+	}
+	arg = append([]string{c}, arg...)
+	cmd := exec.Command(name, arg...)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Dir = path
+	err = cmd.Run()
+	//log.Println(cmd.Args)
+	if err != nil {
+		msg = fmt.Sprint(err) + ": " + stderr.String()
+		err = errors.New(msg)
+		//log.Println("err", err.Error(), "cmd", cmd.Args)
+	}
+	//log.Println(out.String())
+	return
 }

@@ -3,6 +3,7 @@ module WebApiGo
 go 1.19
 
 require (
+	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
 	github.com/gin-gonic/gin v1.8.1
 	github.com/tidwall/gjson v1.14.4
 )

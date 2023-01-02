@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 var client = http.Client{
@@ -10,6 +11,7 @@ var client = http.Client{
 }
 
 func SendMsgPri(userId, msg string) {
-	fullUrl := fmt.Sprintf("%s?user_id=%s&message=%s", SendMsgPriApi, userId, msg)
+	fullUrl := fmt.Sprintf("%s?user_id=%s&message=%s", SendMsgPriApi, userId, url.QueryEscape(msg))
+	fmt.Println(fullUrl)
 	client.Get(fullUrl)
 }
