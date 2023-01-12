@@ -50,6 +50,37 @@ func StrHtmlToJson(data string) string {
 	data = strings.Replace(data, "&amp;", "&", -1)
 	return data
 }
+func BiliDown(message, userId string) string {
+	// 哔哩哔哩视频下载
+	var ban bool
+	msg := "已经提交下载任务"
+	if strInSlice(runTask, message) {
+		ban = true
+		msg = "该任务下载中"
+	}
+	if len(runTask) != 0 {
+		ban = true
+		msg = fmt.Sprintf("有正在运行的任务：%s", runTask[0])
+	}
+	if ban {
+		return msg
+	}
+	runTask = append(runTask, message)
+	go func() {
+		defer cleanTask()
+		BBDownPath := "/opt/BBDown/BBDown"
+		if runtime.GOOS == "windows" {
+			BBDownPath = "E:\\重装系统\\常用工具\\BBDown.exe"
+		}
+		_, err := Command("/", BBDownPath, message)
+		if err != nil {
+			SendMsgPri(userId, fmt.Sprintf("下载失败：%s", err.Error()))
+		} else {
+			SendMsgPri(userId, fmt.Sprintf("下载成功：%s", message))
+		}
+	}()
+	return msg
+}
 
 // ParseCQ 解析CQ码，返回map
 func ParseCQ(cq string) map[string]string {
@@ -104,70 +135,29 @@ func strInSlice(strSlice []string, str string) bool {
 }
 
 func OnMessage(context *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			context.JSON(http.StatusOK, gin.H{
+				"reply": "无法识别的消息类型",
+			})
+		}
+	}()
 	dataReader := context.Request.Body
 	rawData, _ := io.ReadAll(dataReader)
 	rawData = BytesHtmlToJson(rawData)
 	jsonData := string(rawData)
-	jsonData = StrHtmlToJson(jsonData)
+	//jsonData = StrHtmlToJson(jsonData)
 	postType := gjson.Get(jsonData, "post_type").String()
 	userId := gjson.Get(jsonData, "user_id").String()
+	message := gjson.Get(jsonData, "message").String()
+	cq := ParseCQ(message)
+	MapFunc := InitMapFunc()
 	if postType == "message" {
-		message := gjson.Get(jsonData, "message").String()
-		cq := ParseCQ(message)
-		switch cq["CQ"] {
-		case "image":
-			picMd5 := QQUrlToMd5(cq["url"])
-			context.JSON(http.StatusOK, gin.H{
-				"reply": PicMd5ToUrl(picMd5),
-			})
-		case "video":
-			context.JSON(http.StatusOK, gin.H{
-				"reply": cq["url"],
-			})
-		case "":
-			// 无CQ码的普通消息
-			if strings.Index(message, "BV") == 0 {
-				var ban bool
-				msg := "已经提交下载任务"
-				if strInSlice(runTask, message) {
-					ban = true
-					msg = "该任务下载中"
-				}
-				if len(runTask) != 0 {
-					ban = true
-					msg = fmt.Sprintf("有正在运行的任务：%s", runTask[0])
-				}
-				context.JSON(http.StatusOK, gin.H{
-					"reply": msg,
-				})
-				if ban {
-					return
-				}
-				runTask = append(runTask, message)
-				go func() {
-					defer cleanTask()
-					BBDownPath := "/opt/BBDown/BBDown"
-					if runtime.GOOS == "windows" {
-						BBDownPath = "E:\\重装系统\\常用工具\\BBDown.exe"
-					}
-					_, err := Command("/", BBDownPath, message)
-					if err != nil {
-						SendMsgPri(userId, fmt.Sprintf("下载失败：%s", err.Error()))
-					} else {
-						SendMsgPri(userId, fmt.Sprintf("下载成功：%s", message))
-					}
-				}()
-			} else {
-				// 未匹配到指定操作时复读
-				context.JSON(http.StatusOK, gin.H{
-					"reply": message,
-				})
-			}
-		default:
-			context.JSON(http.StatusOK, gin.H{
-				"reply": fmt.Sprintf("暂不支持的CQ码类型：%s", cq["CQ"]),
-			})
-		}
+		// CQ码方法调用(如果是未添加处理的CQ码，会触发panic)
+		reMsg := MapFunc[cq["cq"]](cq, message, userId)
+		context.JSON(http.StatusOK, gin.H{
+			"reply": reMsg,
+		})
 	} else if postType == "notice" {
 		noticeType := gjson.Get(jsonData, "notice_type").String()
 		if noticeType == "offline_file" {
